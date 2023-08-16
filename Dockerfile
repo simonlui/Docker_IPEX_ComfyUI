@@ -98,8 +98,8 @@ COPY startup.sh /bin/
 RUN chmod 755 /bin/startup.sh
 
 VOLUME [ "/deps" ]
-VOLUME [ "/ComfyUItest" ]
-VOLUME [ "/modelstest" ]
+VOLUME [ "/ComfyUI" ]
+VOLUME [ "/models" ]
 VOLUME [ "/root/.cache/huggingfacetest" ]
 
 ENV VENVDir=/deps/venv
