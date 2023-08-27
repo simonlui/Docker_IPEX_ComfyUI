@@ -23,10 +23,14 @@ then
     pip install -r requirements.txt
 fi
 # Launch ComfyUI based on whether ipexrun is set to be used or not.
-if [ "${UseIPEX}" = "true" ]
+if [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "true"]
 then
-    echo "Using ipexrun to launch ComfyUI."
+    echo "Using ipexrun xpu to launch ComfyUI."
     exec ipexrun xpu --convert-fp64-to-fp32 main.py ${ComfyArgs}
+elif [ "${UseXPU}" = "true"]
+then
+    echo "Using ipexrun cpu to launch ComfyUI."
+    exec ipexrun --multi-task-manager 'taskset' --memory-allocator ${ALLOCATOR} main.py ${ComfyArgs}
 else
     echo "No command to use ipexrun to launch ComfyUI. Launching normally."
     python3 main.py ${ComfyArgs}

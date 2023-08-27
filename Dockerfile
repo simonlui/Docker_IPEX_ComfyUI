@@ -72,6 +72,15 @@ ARG ICD_VER=23.17.26241.33-647~22.04
 ARG LEVEL_ZERO_GPU_VER=1.3.26241.33-647~22.04
 ARG LEVEL_ZERO_VER=1.11.0-647~22.04
 ARG LEVEL_ZERO_DEV_VER=1.11.0-647~22.04
+ARG ALLOCATOR=tcmalloc
+ENV ALLOCATOR=${ALLOCATOR}
+ARG ALLOCATOR_PACKAGE=libgoogle-perftools-dev
+ARG ALLOCATOR_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so
+RUN if [ "${ALLOCATOR}" = "jemalloc" ] ; then \
+       ${ALLOCATOR_PACKAGE}=libjemalloc-dev; \
+       ${ALLOCATOR_LD_PRELOAD}=/usr/lib/x86_64-linux-gnu/libjemalloc.so; \
+    fi
+
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-opencl-icd=${ICD_VER} \
@@ -84,10 +93,10 @@ RUN apt-get update && \
 # Comfy UI/Pytorch dependencies for runtime or speedup
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
+    ${ALLOCATOR_PACKAGE} \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    libgoogle-perftools-dev \
     python3-venv \
     git \
     numactl && \
@@ -103,16 +112,25 @@ VOLUME [ "/models" ]
 VOLUME [ "/root/.cache/huggingfacetest" ]
 
 ENV VENVDir=/deps/venv
-ENV LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so
+ENV LD_PRELOAD=${ALLOCATOR_LD_PRELOAD}
 
 # Force 100% available VRAM size for compute-runtime
 # See https://github.com/intel/compute-runtime/issues/586
 ENV NEOReadDebugKeys=1
 ENV ClDeviceGlobalMemSizeAvailablePercent=100
 
-# Uncomment if ipexrun is to be used to launch ComfyUI. Off by default.
-ARG UseIPEX=false
-ENV UseIPEX=${UseIPEX}
+# Enable double precision emulation just in case.
+# See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
+ENV OverrideDefaultFP64Settings=1
+ENV IGC_EnableDPEmulation=1
+
+# Set to false if CPU is to be used to launch ComfyUI. XPU is default.
+ARG UseXPU=true
+ENV UseXPU=${UseXPU}
+
+# Set to true if ipexrun is to be used to launch ComfyUI. Off by default.
+ARG UseIPEXRUN=false
+ENV UseIPEXRUN=${UseIPEXRUN}
 
 # Pass in ComfyUI arguments as an environment variable so it can be used in startup.sh
 ARG ComfyArgs=""

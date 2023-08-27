@@ -23,13 +23,13 @@ Intel Extension for Pytorch (IPEX) and other python packages and dependencies wi
 ## Build and run the image
 
 Instructions will assume Docker but replace with podman since it should have command compatibility. Run the following command in terminal to checkout the repository and build the image.
-```
+```shell
 git clone https://github.com/simonlui/Docker_IPEX_ComfyUI
 cd Docker_IPEX_ComfyUI
 docker build -t ipex-arc-comfy:latest -f Dockerfile .
 ```
 Once this complete, then run the following if using Linux in terminal or Docker Desktop.
-```
+```shell
 docker run -it `
 --device /dev/dri `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -42,10 +42,9 @@ docker run -it `
 -v huggingface:/root/.cache/huggingface `
 -e ComfyArgs="<ComfyUI command line arguments>" `
 ipex-arc-comfy:latest
-
 ```
 For Windows, run the following in terminal or Docker Desktop.
-```
+```powershell
 docker run -it `
 --device /dev/dxg `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -76,4 +75,15 @@ Below is an explanation on what the above commands mean so one will know how to 
 
 Afterwards, one should be able to see that everything runs. To stop a container, you can run `docker stop comfy-server` to stop the container. To resume, you should run `docker start -ai comfy-server`.
 
-Refer to [Dockerfile](./Dockerfile) for all available build arguments and environment variables.
+## Additional Options
+* You can specify an optional `-v <volume_name>:/models` inside the argument list to point to an external model location. A valid `extra_model_paths.yaml` file must be provided in the root folder of the ComfyUI location with the following lines needed at minimum inside:
+```yaml
+docker:
+    base_path: /
+...
+```
+Please refer to ComfyUI's [example .yaml file](https://github.com/comfyanonymous/ComfyUI/blob/master/extra_model_paths.yaml.example) for further guidance on how to specify your model locations.
+* (_Experimental_) `ipexrun` is a launcher script to use Intel's Extension For Pytorch without code changes. It is currently not working as there are issues running the ComfyUI through the launcher but to use it, add in `-e UseIPEXRUN=true`. Additionally, if one wants to run it in CPU mode, one can pass in `-e UseXPU=false`.
+* (_Experimental_) You can change between `tcmalloc` (default) and `jemalloc` if using CPU `ipexrun`, add in `--build-arg="ALLOCATOR=jemalloc"` when building the image in the first step to switch.
+
+Refer to the [Dockerfile](./Dockerfile) for all available build arguments and environment variables not documented.
