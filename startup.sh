@@ -26,11 +26,11 @@ fi
 if [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "true"]
 then
     echo "Using ipexrun xpu to launch ComfyUI."
-    exec ipexrun xpu --convert-fp64-to-fp32 main.py ${ComfyArgs}
+    exec ipexrun xpu ${IPEXRUNArgs} main.py ${ComfyArgs}
 elif [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "false" ]
 then
     echo "Using ipexrun cpu to launch ComfyUI."
-    exec ipexrun --multi-task-manager 'taskset' --memory-allocator ${ALLOCATOR} main.py ${ComfyArgs}
+    exec ipexrun ${IPEXRUNArgs} main.py ${ComfyArgs}
 else
     echo "No command to use ipexrun to launch ComfyUI. Launching normally."
     python3 main.py ${ComfyArgs}

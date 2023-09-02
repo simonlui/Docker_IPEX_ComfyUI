@@ -9,27 +9,28 @@ The Docker/OCI image includes
 - Intel Graphics driver
 - Basic Python virtual environment
 
-Intel Extension for Pytorch (IPEX) and other python packages and dependencies will be installed upon first launch of the container. They will be installed in a Python virtual environment in a seperate volume to allow for reuse between containers.
+Intel Extension for Pytorch (IPEX) and other python packages and dependencies will be installed upon first launch of the container. They will be installed in a Python virtual environment in a separate volume to allow for reuse between containers and to make rebuilding images in between changes a lot faster.
 
 ## Prerequisites
 
-* Intel GPU which has support for Intel's oneAPI AI toolkit. According to their support link [here](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/intel-oneapi-ai-analytics-toolkit-system-requirements.html), the following GPUs are supported.
+* Intel GPU which has support for Intel's oneAPI AI toolkit. According to Intel's support link [here](https://www.intel.com/content/www/us/en/developer/articles/system-requirements/intel-oneapi-ai-analytics-toolkit-system-requirements.html), the following GPUs are supported.
     - Intel® Data Center GPU Flex Series
     - Intel® Data Center GPU Max Series
     - Intel® Arc™ A-Series Graphics
+There are reports that Intel® Xe GPUs from Gen 12 and onwards are also capable of running the software but this has not been tested and it seems to rely on custom compilation of the software yourself. Feel free to file any issues if this is the case. Otherwise, any other Intel GPUs are unfortunately not supported and will need to have its support enabled by Intel.
 * Docker (Desktop) or podman
-* Linux or Windows.
+* Linux and Windows, with the latest drivers installed. Windows is untested but should work.
 
 ## Build and run the image
 
-Instructions will assume Docker but replace with podman since it should have command compatibility. Run the following command in terminal to checkout the repository and build the image.
-```shell
+Instructions will assume Docker but podman has command compatibility so it should be easy to replace docker in these commands to run also. Run the following command in a terminal to checkout the repository and build the image.
+```console
 git clone https://github.com/simonlui/Docker_IPEX_ComfyUI
 cd Docker_IPEX_ComfyUI
 docker build -t ipex-arc-comfy:latest -f Dockerfile .
 ```
 Once this complete, then run the following if using Linux in terminal or Docker Desktop.
-```shell
+```console
 docker run -it `
 --device /dev/dri `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -44,7 +45,7 @@ docker run -it `
 ipex-arc-comfy:latest
 ```
 For Windows, run the following in terminal or Docker Desktop.
-```powershell
+```console
 docker run -it `
 --device /dev/dxg `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -59,12 +60,12 @@ ipex-arc-comfy:latest
 ```
 <b>You must replace the <> text in the above commands with your own text. Copying the commands without modification will not run.</b>
 
-Below is an explanation on what the above commands mean so one will know how to modify the command correctly to run the image if you are not familar with Docker or podman. The arguments can be ordered in any way as long as `docker run` and `ipex-arc-comfy:latest` stay in the locations specified.
+Below is an explanation on what the above commands mean so one will know how to modify the command correctly to run the image if you are not familiar with Docker or podman. The arguments can be ordered in any way as long as `docker run` and `ipex-arc-comfy:latest` stay in the locations specified.
 
 * docker run creates and runs a new container from an image. No modification needed here.
 * On Linux, `--device /dev/dri` passes in your GPU to the container as is required to enable container access to your GPU to run ComfyUI. On Windows, `--device /dev/dxg` and `-v /usr/lib/wsl:/usr/lib/wsl` are the equivalent commands to do the same thing through WSL2.
 * `-e ComfyArgs="<ComfyUI command line arguments>"` specifies the ComfyUI arguments that you can pass to ComfyUI to use. At minimum as of this writing, you need to specify `--highvram`. `--highvram` keeps the model in GPU memory which is needed to stop a source of crashing but it can also include anything else you specify.
-* `-it` will let you launch the container with an interactive command line. This is highly recommended, but not mandatory, since we may need to monitor ComfyUI's output for any status changes or errors which would be made availble easily by including this option.
+* `-it` will let you launch the container with an interactive command line. This is highly recommended, but not mandatory, since we may need to monitor ComfyUI's output for any status changes or errors which would be made available easily by including this option.
 * `--name comfy-server` assigns a meaningful name (e.g. comfy-server) to the newly created container. This option is useful but not mandatory to reference your container for later uses.
 * `--network=host` allows the container access to your host computer's network which is needed to access ComfyUI without specifying the `--listen` argument.
 * `-p 8188:8188` specifies the computer network port to pass into the container to expose access to. By default, ComfyUI uses port 8188 so inside the container , this port will be forwarded to http://localhost:<host_port> on your host system. This can be changed but is not recommended for most users.
@@ -76,14 +77,13 @@ Below is an explanation on what the above commands mean so one will know how to 
 Afterwards, one should be able to see that everything runs. To stop a container, you can run `docker stop comfy-server` to stop the container. To resume, you should run `docker start -ai comfy-server`.
 
 ## Additional Options
-* You can specify an optional `-v <volume_name>:/models` inside the argument list to point to an external model location. A valid `extra_model_paths.yaml` file must be provided in the root folder of the ComfyUI location with the following lines needed at minimum inside:
+* You can specify an optional `-v <volume_name>:/models` inside the argument list to point to an external model location. A valid `extra_model_paths.yaml` file must be provided in the root folder of the ComfyUI location. Please refer to ComfyUI's [example .yaml file](https://github.com/comfyanonymous/ComfyUI/blob/master/extra_model_paths.yaml.example) for guidance on how to specify your model locations. But you will need the following lines at minimum inside to point to the docker location:
 ```yaml
 docker:
     base_path: /
 ...
 ```
-Please refer to ComfyUI's [example .yaml file](https://github.com/comfyanonymous/ComfyUI/blob/master/extra_model_paths.yaml.example) for further guidance on how to specify your model locations.
-* (_Experimental_) `ipexrun` is a launcher script to use Intel's Extension For Pytorch without code changes. It is currently not working as there are issues running the ComfyUI through the launcher but to use it, add in `-e UseIPEXRUN=true`. Additionally, if one wants to run it in CPU mode, one can pass in `-e UseXPU=false`.
-* (_Experimental_) You can change between `tcmalloc` (default) and `jemalloc` if using CPU `ipexrun`, add in `--build-arg="ALLOCATOR=jemalloc"` when building the image in the first step to switch.
+* `ipexrun` is a launcher script to use Intel's Extension For Pytorch without code changes with optimizations enabled. It is currently not working through the GPU/XPU path as there are issues running the ComfyUI through the launcher with the existing arguments but to use it, add in `-e UseIPEXRUN=true`. Additionally, if one wants to run it in CPU mode, you should additionally add in `-e UseXPU=false`. You should also then set the environment variable for arguments to `ipexrun` adding `-e IPEXRUNArgs=<Your arguments here>`. A reference to all the `ipexrun` arguments can be found [here](https://intel.github.io/intel-extension-for-pytorch/xpu/latest/tutorials/performance_tuning/launch_script.html)
+* You can change between `tcmalloc` (default) and `jemalloc` if using CPU `ipexrun`, add in `--build-arg="ALLOCATOR=jemalloc"` when building the image in the first step to switch between the two allocators for `ipexrun`.
 
-Refer to the [Dockerfile](./Dockerfile) for all available build arguments and environment variables not documented.
+Please refer to the [Dockerfile](./Dockerfile) for all available build arguments and environment variables not mentioned here and documented.

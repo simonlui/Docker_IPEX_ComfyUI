@@ -2,6 +2,7 @@
 ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION} AS oneapi-lib-installer
 
+# Install prerequisites to install oneAPI libraries
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
@@ -20,7 +21,7 @@ ARG DPCPP_VER=2023.2.1-16
 ARG MKL_VER=2023.2.0-49495
 # intel-oneapi-compiler-shared-common provides `sycl-ls`
 ARG CMPLR_COMMON_VER=2023.2.1
-# Install runtime libs to reduce image size
+# Install runtime libraries only to reduce image size
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-oneapi-runtime-dpcpp-cpp=${DPCPP_VER} \
@@ -37,6 +38,7 @@ RUN printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] ht
 ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION}
 
+# Copy all the files from the OneAPI library image into the actual image.
 RUN mkdir /oneapi-lib
 COPY --from=oneapi-lib-installer /opt/intel/oneapi/lib /oneapi-lib/
 ARG CMPLR_COMMON_VER=2023.2.1
@@ -44,30 +46,35 @@ COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
 
-# Set oneAPI lib env
+# Set oneAPI library environment variable
 ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
 
+# Install certificate authorities to download stuff from other places.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
+# Install Python and pip
 ARG PYTHON=python3.10
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ${PYTHON} lib${PYTHON} python3-pip && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
+# Update pip
 RUN pip --no-cache-dir install --upgrade \
     pip \
     setuptools
 
+# Softlink Python to make it default
 RUN ln -sf $(which ${PYTHON}) /usr/local/bin/python && \
     ln -sf $(which ${PYTHON}) /usr/local/bin/python3 && \
     ln -sf $(which ${PYTHON}) /usr/bin/python && \
     ln -sf $(which ${PYTHON}) /usr/bin/python3
 
+# Sets versions of Level-Zero, OpenCL and memory allocator chosen.
 ARG ICD_VER=23.17.26241.33-647~22.04
 ARG LEVEL_ZERO_GPU_VER=1.3.26241.33-647~22.04
 ARG LEVEL_ZERO_VER=1.11.0-647~22.04
@@ -81,6 +88,7 @@ RUN if [ "${ALLOCATOR}" = "jemalloc" ] ; then \
        ${ALLOCATOR_LD_PRELOAD}=/usr/lib/x86_64-linux-gnu/libjemalloc.so; \
     fi
 
+# Install Level-Zero and OpenCL backends
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-opencl-icd=${ICD_VER} \
@@ -90,7 +98,7 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
-# Comfy UI/Pytorch dependencies for runtime or speedup
+# Install Comfy UI/Pytorch dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ${ALLOCATOR_PACKAGE} \
@@ -103,14 +111,17 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
+# Copy the startup script to the /bin/ folder and make executable.
 COPY startup.sh /bin/
 RUN chmod 755 /bin/startup.sh
 
+# Volumes that can be used by the image when making containers
 VOLUME [ "/deps" ]
 VOLUME [ "/ComfyUI" ]
 VOLUME [ "/models" ]
 VOLUME [ "/root/.cache/huggingfacetest" ]
 
+# Setup location of Python virtual environment and make sure LD_PRELOAD contains the path of the allocator chosen.
 ENV VENVDir=/deps/venv
 ENV LD_PRELOAD=${ALLOCATOR_LD_PRELOAD}
 
@@ -132,9 +143,16 @@ ENV UseXPU=${UseXPU}
 ARG UseIPEXRUN=false
 ENV UseIPEXRUN=${UseIPEXRUN}
 
-# Pass in ComfyUI arguments as an environment variable so it can be used in startup.sh
+# Set to the arguments you want to pass to ipexrun.
+# Example for CPU: --multi-task-manager 'taskset' --memory-allocator ${ALLOCATOR}
+# Example for XPU: --convert-fp64-to-fp32
+ARG IPEXRUNArgs=""
+ENV IPEXRUNArgs=${IPEXRUNArgs}
+
+# Pass in ComfyUI arguments as an environment variable so it can be used in startup.sh which passes it on.
 ARG ComfyArgs=""
 ENV ComfyArgs=${ComfyArgs}
 
+# Set location and entrypoint of the image to the ComfyUI directory and the startup script.
 WORKDIR /ComfyUI
 ENTRYPOINT [ "startup.sh" ]
