@@ -9,9 +9,10 @@ then
     FirstLaunch="true"
 fi
 # Activate the virtual environment to use for ComfyUI
-if [ -f ${VENVDir}/bin/activate ]
+if [ -f "${VENVDir}"/bin/activate ]
 then
-    . ${VENVDir}/bin/activate
+    # shellcheck disable=SC1091
+    . "${VENVDir}"/bin/activate
 else
     echo "Error: Cannot activate python venv. Check installation. Exiting immediately."
     exit 1
@@ -23,15 +24,15 @@ then
     pip install -r requirements.txt
 fi
 # Launch ComfyUI based on whether ipexrun is set to be used or not.
-if [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "true"]
+if [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "true" ]
 then
     echo "Using ipexrun xpu to launch ComfyUI."
-    exec ipexrun xpu ${IPEXRUNArgs} main.py ${ComfyArgs}
+    exec ipexrun xpu "${IPEXRUNArgs}" main.py "${ComfyArgs}"
 elif [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "false" ]
 then
     echo "Using ipexrun cpu to launch ComfyUI."
-    exec ipexrun ${IPEXRUNArgs} main.py ${ComfyArgs}
+    exec ipexrun "${IPEXRUNArgs}" main.py "${ComfyArgs}"
 else
     echo "No command to use ipexrun to launch ComfyUI. Launching normally."
-    python3 main.py ${ComfyArgs}
+    python3 main.py "${ComfyArgs}"
 fi
