@@ -3,36 +3,39 @@
 git rev-parse --git-dir > /dev/null 2>&1 || git clone https://github.com/comfyanonymous/ComfyUI.git .
 git config core.filemode false
 # Setup Python virtual environment if we don't see anything there as in a first launch run.
-if [ ! -d "${VENVDir}" ]
+if [ ! -d "$VENVDir" ]
 then
-    python3 -m venv "${VENVDir}"
+    python3 -m venv "$VENVDir"
     FirstLaunch="true"
 fi
 # Activate the virtual environment to use for ComfyUI
-if [ -f "${VENVDir}"/bin/activate ]
+if [ -f "$VENVDir"/bin/activate ]
 then
     # shellcheck disable=SC1091
-    . "${VENVDir}"/bin/activate
+    . "$VENVDir"/bin/activate
 else
     echo "Error: Cannot activate python venv. Check installation. Exiting immediately."
     exit 1
 fi
 # Install pip requirements if launching for the first time.
-if [ "${FirstLaunch}" = "true" ]
+if [ "$FirstLaunch" = "true" ]
 then
     pip install torch==2.0.1a0 torchvision==0.15.2a0 intel_extension_for_pytorch==2.0.110+xpu -f https://developer.intel.com/ipex-whl-stable-xpu
     pip install -r requirements.txt
 fi
-# Launch ComfyUI based on whether ipexrun is set to be used or not.
-if [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "true" ]
+# Launch ComfyUI based on whether ipexrun is set to be used or not. Explicit string splitting is done by the shell here.
+if [ "$UseIPEXRUN" = "true" ] && [ "$UseXPU" = "true" ]
 then
     echo "Using ipexrun xpu to launch ComfyUI."
-    exec ipexrun xpu "${IPEXRUNArgs}" main.py "${ComfyArgs}"
-elif [ "${UseIPEXRUN}" = "true" ] && [ "${UseXPU}" = "false" ]
+    # shellcheck disable=SC2086
+    exec ipexrun xpu $IPEXRUNArgs main.py $ComfyArgs
+elif [ "$UseIPEXRUN" = "true" ] && [ "$UseXPU" = "false" ]
 then
     echo "Using ipexrun cpu to launch ComfyUI."
-    exec ipexrun "${IPEXRUNArgs}" main.py "${ComfyArgs}"
+    # shellcheck disable=SC2086
+    exec ipexrun $IPEXRUNArgs main.py $ComfyArgs
 else
     echo "No command to use ipexrun to launch ComfyUI. Launching normally."
-    python3 main.py "${ComfyArgs}"
+    # shellcheck disable=SC2086
+    python3 main.py $ComfyArgs
 fi

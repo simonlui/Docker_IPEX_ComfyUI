@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: Apache-2.0 
+# SPDX-License-Identifier: Apache-2.0
 ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION} AS oneapi-lib-installer
 
 # Install prerequisites to install oneAPI runtime libraries.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
@@ -11,10 +12,10 @@ RUN apt-get update && \
     unzip \
     wget
 
-# Add oneAPI package repositories.
-RUN no_proxy=$no_proxy wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+# hadolint ignore=DL4006
+RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
    | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
-   echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main" \
+   echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' \
    | tee /etc/apt/sources.list.d/oneAPI.list
 
 # Define and install oneAPI runtime libraries for less space.
@@ -30,9 +31,11 @@ RUN apt-get update && \
 
 # Add and prepare Intel Graphics driver index. This is dependent on being able to pass your GPU with a working driver on the host side where the image will run.
 ARG DEVICE=flex
-RUN no_proxy=$no_proxy wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
+# hadolint ignore=DL4006
+RUN no_proxy=$no_proxy wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-RUN printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy %s\n' "$DEVICE" | \
+# hadolint ignore=DL4006
+RUN printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy %s\n' "${DEVICE}" | \
     tee /etc/apt/sources.list.d/intel.gpu.jammy.list
 
 ARG UBUNTU_VERSION=22.04
@@ -50,6 +53,7 @@ COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /e
 ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
 
 # Install certificate authorities to get access to secure connections to other places for downloads.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates && \
@@ -58,21 +62,23 @@ RUN apt-get update && \
 
 # Install Python and pip
 ARG PYTHON=python3.10
+# hadolint ignore=DL3008
 RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
     ${PYTHON} lib${PYTHON} python3-pip && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
 # Update pip
+# hadolint ignore=DL3013
 RUN pip --no-cache-dir install --upgrade \
     pip \
     setuptools
 
 # Softlink Python to make it default.
-RUN ln -sf $(which ${PYTHON}) /usr/local/bin/python && \
-    ln -sf $(which ${PYTHON}) /usr/local/bin/python3 && \
-    ln -sf $(which ${PYTHON}) /usr/bin/python && \
-    ln -sf $(which ${PYTHON}) /usr/bin/python3
+RUN ln -sf "$(which ${PYTHON})" /usr/local/bin/python && \
+    ln -sf "$(which ${PYTHON})" /usr/local/bin/python3 && \
+    ln -sf "$(which ${PYTHON})" /usr/bin/python && \
+    ln -sf "$(which ${PYTHON})" /usr/bin/python3
 
 # Sets versions of Level-Zero, OpenCL and memory allocator chosen.
 ARG ICD_VER=23.17.26241.33-647~22.04
@@ -84,8 +90,8 @@ ENV ALLOCATOR=${ALLOCATOR}
 ARG ALLOCATOR_PACKAGE=libgoogle-perftools-dev
 ARG ALLOCATOR_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libtcmalloc.so
 RUN if [ "${ALLOCATOR}" = "jemalloc" ] ; then \
-       ${ALLOCATOR_PACKAGE}=libjemalloc-dev; \
-       ${ALLOCATOR_LD_PRELOAD}=/usr/lib/x86_64-linux-gnu/libjemalloc.so; \
+       ALLOCATOR_PACKAGE=libjemalloc-dev; \
+       ALLOCATOR_LD_PRELOAD=/usr/lib/x86_64-linux-gnu/libjemalloc.so; \
     fi
 
 # Install Level-Zero and OpenCL backends.
@@ -99,6 +105,7 @@ RUN apt-get update && \
     rm -rf  /var/lib/apt/lists/*
 
 # Install Comfy UI/Pytorch dependencies.
+# hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ${ALLOCATOR_PACKAGE} \
