@@ -142,6 +142,10 @@ ENV ClDeviceGlobalMemSizeAvailablePercent=100
 ENV OverrideDefaultFP64Settings=1
 ENV IGC_EnableDPEmulation=1
 
+# Set variable for better training performance
+# See https://github.com/intel/intel-extension-for-pytorch/issues/296#issuecomment-1461118993
+ENV IPEX_XPU_ONEDNN_LAYOUT=1
+
 # Set to false if CPU is to be used to launch ComfyUI. XPU is default.
 ARG UseXPU=true
 ENV UseXPU=${UseXPU}
