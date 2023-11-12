@@ -21,7 +21,7 @@ Intel Extension for Pytorch (IPEX) and other python packages and dependencies wi
 There are reports that Intel® Xe GPUs (iGPU and dGPU) in Tiger Lake (11th generation) and newer Intel processors are also capable of running oneAPI but this has not been tested and it seems to rely on custom compilation of the software yourself. Feel free to file any issues if this is the case as the infrastructure is there for support to be implemented, it seems. Otherwise, any other Intel GPUs are unfortunately not supported and will need to have its support enabled by Intel for oneAPI. If you are in such a position and want to run Stable Diffusion with an older Intel GPU, ComfyUI and this repository won't be able to do that for you at this time but please take a look at Intel's OpenVINO fork of stable-diffusion-webui located [here](https://github.com/openvinotoolkit/stable-diffusion-webui/wiki/Installation-on-Intel-Silicon) for a way to possibly do that.
 * Docker (Desktop) or podman
 * Linux and Windows, with the latest drivers installed. Windows is untested but should work.
-* For Windows, you must have WSL2 set up via (this link)[https://learn.microsoft.com/en-us/windows/wsl/install] in addition to Docker to be able to pass through your GPU.
+* For Windows, you must have WSL2 set up via [this link](https://learn.microsoft.com/en-us/windows/wsl/install) in addition to Docker to be able to pass through your GPU.
 
 ## Build and run the image
 
