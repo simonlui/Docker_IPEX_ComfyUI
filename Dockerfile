@@ -19,10 +19,10 @@ RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/
    | tee /etc/apt/sources.list.d/oneAPI.list
 
 # Define and install oneAPI runtime libraries for less space.
-ARG DPCPP_VER=2023.2.1-16
-ARG MKL_VER=2023.2.0-49495
+ARG DPCPP_VER=2024.0.0-49819
+ARG MKL_VER=2024.0.0-49656
 # intel-oneapi-compiler-shared-common provides `sycl-ls`
-ARG CMPLR_COMMON_VER=2023.2.1
+ARG CMPLR_COMMON_VER=2024.0
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-oneapi-runtime-dpcpp-cpp=${DPCPP_VER} \
@@ -43,9 +43,9 @@ FROM ubuntu:${UBUNTU_VERSION}
 
 # Copy all the files from the oneAPI runtime libraries image into the actual final image.
 RUN mkdir /oneapi-lib
-COPY --from=oneapi-lib-installer /opt/intel/oneapi/lib /oneapi-lib/
-ARG CMPLR_COMMON_VER=2023.2.1
-COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/linux/bin/sycl-ls /bin/
+COPY --from=oneapi-lib-installer /opt/intel/oneapi/redist/lib/ /oneapi-lib/
+ARG CMPLR_COMMON_VER=2024.0
+COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/bin/sycl-ls /bin/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
 
