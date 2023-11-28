@@ -20,7 +20,8 @@ fi
 # Install pip requirements if launching for the first time.
 if [ "$FirstLaunch" = "true" ]
 then
-    pip install torch==2.0.1a0 torchvision==0.15.2a0 intel_extension_for_pytorch==2.0.110+xpu -f https://developer.intel.com/ipex-whl-stable-xpu
+    #pip install torch==2.0.1a0 torchvision==0.15.2a0 intel_extension_for_pytorch==2.0.110+xpu -f https://developer.intel.com/ipex-whl-stable-xpu
+    pip install https://intel-extension-for-pytorch.s3.amazonaws.com/ipex_stable/xpu/torch-2.0.1a0%2Bcxx11.abi-cp310-cp310-linux_x86_64.whl https://intel-extension-for-pytorch.s3.amazonaws.com/ipex_stable/xpu/torchvision-0.15.2a0%2Bcxx11.abi-cp310-cp310-linux_x86_64.whl https://intel-extension-for-pytorch.s3.amazonaws.com/ipex_stable/xpu/intel_extension_for_pytorch-2.0.110%2Bxpu-cp310-cp310-linux_x86_64.whl
     pip install -r requirements.txt
 fi
 # Launch ComfyUI based on whether ipexrun is set to be used or not. Explicit string splitting is done by the shell here.
