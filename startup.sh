@@ -1,7 +1,4 @@
 #!/bin/sh
-# Clone repository if we have an empty space available.
-git rev-parse --git-dir > /dev/null 2>&1 || git clone https://github.com/comfyanonymous/ComfyUI.git .
-git config core.filemode false
 # Setup Python virtual environment if we don't see anything there as in a first launch run.
 if [ ! -d "$VENVDir" ]
 then
