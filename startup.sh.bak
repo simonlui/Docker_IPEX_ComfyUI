@@ -14,14 +14,14 @@ fi
 if [ -f "$VENVDir"/bin/activate ]
 then
     echo "Activating python venv."
-    . "$VENVDir"/bin/activate
+    "$VENVDir"/bin/activate
 else
     echo "Error: Cannot activate python venv. Check installation. Exiting immediately."
     exit 1
 fi
 
 # Install pip requirements if launching for the first time.
-if [ "$FirstLaunch" = "true" ]
+if $FirstLaunch
 then
     echo "Installing ComfyUI Python dependencies."
     #pip install torch==2.0.1a0 torchvision==0.15.2a0 intel_extension_for_pytorch==2.0.110+xpu -f https://developer.intel.com/ipex-whl-stable-xpu
@@ -29,19 +29,16 @@ then
     pip install -r requirements.txt
 fi
 
-# Launch ComfyUI based on whether ipexrun is set to be used or not. Explicit string splitting is done by the shell here so shellcheck warning is ignored.
-if [ "$UseIPEXRUN" = "true" ] && [ "$UseXPU" = "true" ]
+# Launch ComfyUI based on whether ipexrun is set to be used or not. Explicit string splitting is done by the shell here.
+if $UseIPEXRUN && $UseXPU
 then
     echo "Using ipexrun xpu to launch ComfyUI."
-    # shellcheck disable=SC2086
     exec ipexrun xpu $IPEXRUNArgs main.py $ComfyArgs
-elif [ "$UseIPEXRUN" = "true" ] && [ "$UseXPU" = "false" ]
+elif $UseIPEXRUN && ! $UseXPU
 then
     echo "Using ipexrun cpu to launch ComfyUI."
-    # shellcheck disable=SC2086
     exec ipexrun $IPEXRUNArgs main.py $ComfyArgs
 else
     echo "No command to use ipexrun to launch ComfyUI. Launching normally."
-    # shellcheck disable=SC2086
     python3 main.py $ComfyArgs
 fi
