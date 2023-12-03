@@ -1,6 +1,7 @@
 #!/bin/sh
+CONTAINER_ALREADY_STARTED=/tmp/CONTAINER_ALREADY_STARTED_PLACEHOLDER
 # Setup Python virtual environment if we don't see anything there as in a first launch run or if the repository does not exist.
-if ! { [ -d "$VENVDir" ] && [ "$(ls -A "$PWD")" ]; }
+if [ ! -e $CONTAINER_ALREADY_STARTED ]
 then
     echo "First time launching container, setting things up."
     python3 -m venv "$VENVDir"
@@ -8,6 +9,8 @@ then
     git rev-parse --git-dir > /dev/null 2>&1 || git clone https://github.com/comfyanonymous/ComfyUI.git .
     git config core.filemode false
     FirstLaunch=true
+    # Make a file in /tmp/ to indicate the first launch step has been executed.
+    touch "$CONTAINER_ALREADY_STARTED"
 fi
 
 # Activate the virtual environment to use for ComfyUI
