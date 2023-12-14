@@ -27,8 +27,6 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-oneapi-runtime-dpcpp-cpp=${DPCPP_VER} \
     intel-oneapi-runtime-mkl=${MKL_VER} \
-    # TODO: Remove below when oneAPI updates.
-    intel-oneapi-runtime-openmp=${DPCPP_VER} \
     intel-oneapi-compiler-shared-common-${CMPLR_COMMON_VER}=${DPCPP_VER}
 
 # Add and prepare Intel Graphics driver index. This is dependent on being able to pass your GPU with a working driver on the host side where the image will run.
@@ -121,17 +119,17 @@ RUN apt-get update && \
     rm -rf  /var/lib/apt/lists/*
 
 # Copy the startup script to the /bin/ folder and make executable.
-COPY startup.sh /bin/
-RUN chmod 755 /bin/startup.sh
+COPY startup_latest.sh /bin/
+RUN chmod 755 /bin/startup_latest.sh
 
 # Volumes that can be used by the image when making containers.
-VOLUME [ "/deps" ]
+VOLUME [ "/deps_latest" ]
 VOLUME [ "/ComfyUI" ]
 VOLUME [ "/models" ]
 VOLUME [ "/root/.cache/huggingfacetest" ]
 
 # Setup location of Python virtual environment and make sure LD_PRELOAD contains the path of the allocator chosen.
-ENV VENVDir=/deps/venv
+ENV VENVDir=/deps_latest/venv
 ENV LD_PRELOAD=${ALLOCATOR_LD_PRELOAD}
 
 # Force 100% available VRAM size for compute-runtime.
