@@ -10,7 +10,9 @@ RUN apt-get update && \
     gnupg2 \
     gpg-agent \
     unzip \
-    wget
+    wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # hadolint ignore=DL4006
 RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
@@ -19,20 +21,17 @@ RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/
    | tee /etc/apt/sources.list.d/oneAPI.list
 
 # Define and install oneAPI runtime libraries for less space.
-#ARG DPCPP_VER=2024.0.0-49819
-#ARG MKL_VER=2024.0.0-49656
+ARG DPCPP_VER=2024.0.0-49819
+ARG MKL_VER=2024.0.0-49656
+ARG CMPLR_COMMON_VER=2024.0
 # intel-oneapi-compiler-shared-common provides `sycl-ls`
-#ARG CMPLR_COMMON_VER=2024.0
-ARG DPCPP_VER=2023.2.4-49553
-ARG MKL_VER=2023.2.0-49495
-ARG CMPLR_COMMON_VER=2023.2.4
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-oneapi-runtime-dpcpp-cpp=${DPCPP_VER} \
     intel-oneapi-runtime-mkl=${MKL_VER} \
-    # TODO: Remove below when oneAPI updates.
-    intel-oneapi-runtime-openmp=${DPCPP_VER} \
-    intel-oneapi-compiler-shared-common-${CMPLR_COMMON_VER}=${DPCPP_VER}
+    intel-oneapi-compiler-shared-common-${CMPLR_COMMON_VER}=${DPCPP_VER} &&\
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Add and prepare Intel Graphics driver index. This is dependent on being able to pass your GPU with a working driver on the host side where the image will run.
 ARG DEVICE=flex
@@ -47,15 +46,15 @@ ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION}
 
 # Copy all the files from the oneAPI runtime libraries image into the actual final image.
-RUN mkdir /oneapi-lib
-#COPY --from=oneapi-lib-installer /opt/intel/oneapi/redist/lib/ /oneapi-lib/
-#ARG CMPLR_COMMON_VER=2024.0
-#COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/bin/sycl-ls /bin/
-COPY --from=oneapi-lib-installer /opt/intel/oneapi/lib /oneapi-lib/
-ARG CMPLR_COMMON_VER=2023.2.4
-COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/linux/bin/sycl-ls /bin/
+RUN mkdir -p /oneapi-lib
+COPY --from=oneapi-lib-installer /opt/intel/oneapi/redist/lib/ /oneapi-lib/
+ARG CMPLR_COMMON_VER=2024.0
+COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/bin/sycl-ls /bin/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
+
+# Set apt install to not be interactive for things like tzdata
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Set oneAPI library environment variable
 ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
@@ -64,17 +63,27 @@ ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
-    ca-certificates && \
+    ca-certificates \
+    gnupg2 \
+    gpg-agent \
+    software-properties-common && \
+    apt-get upgrade -y --no-install-recommends --fix-missing && \
     apt-get clean && \
-    rm -rf  /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
-# Install Python and pip
-ARG PYTHON=python3.10
+# Install Python and other associated packages from PPA since default is 3.10
+ARG PYTHON=python3.11
 # hadolint ignore=DL3008
-RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing \
-    ${PYTHON} lib${PYTHON} python3-pip && \
+RUN add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends --fix-missing \
+    ${PYTHON} \
+    lib${PYTHON} \
+    python3-pip \
+    ${PYTHON}-venv && \
+    #python3-venv && \
     apt-get clean && \
-    rm -rf  /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/*
 
 # Update pip
 # hadolint ignore=DL3013
@@ -120,7 +129,6 @@ RUN apt-get update && \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    python3-venv \
     git \
     numactl && \
     apt-get clean && \

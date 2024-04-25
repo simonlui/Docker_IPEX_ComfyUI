@@ -27,7 +27,8 @@ fi
 if [ "$FirstLaunch" = "true" ]
 then
     echo "Installing ComfyUI Python dependencies."
-    python -m pip install torch==2.0.1a0 torchvision==0.15.2a0 intel-extension-for-pytorch==2.0.120+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl-aitools/
+    #python -m pip install torch==2.1.0.post0 torchvision==0.16.0.post0 torchaudio==2.1.0.post0 intel-extension-for-pytorch==2.1.20+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
+    pip install *.whl
     pip install -r requirements.txt
 fi
 
