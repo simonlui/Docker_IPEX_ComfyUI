@@ -35,7 +35,7 @@ cd Docker_IPEX_ComfyUI
 docker build -t ipex-arc-comfy:latest -f Dockerfile .
 ```
 #### Temporary workaround with Intel Extension for Pytorch
-Go to the releases page and download either Python 3.10 or 3.11 packages versions for intel_extension_for_pytorch, intel_extension_for_pytorch_deepspeed, torch, torchaudio, and torchvision and put the package files in your ComfyUI directory. The startup script will pick them up and install them the first time you start the container.
+Go to the releases page and download the Python 3.11 packages versions for intel_extension_for_pytorch, intel_extension_for_pytorch_deepspeed, torch, torchaudio, and torchvision and put the package files in your ComfyUI directory. This will replace installation of these packages from Intel's repositories until a new version of IPEX releases. The startup script will pick them up and install them the first time you start the container.
 
 Once the image build is complete, then run the following if using Linux in terminal or Docker Desktop.
 ```console

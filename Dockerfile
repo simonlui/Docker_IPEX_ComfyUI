@@ -21,9 +21,9 @@ RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/
    | tee /etc/apt/sources.list.d/oneAPI.list
 
 # Define and install oneAPI runtime libraries for less space.
-ARG DPCPP_VER=2024.0.0-49819
-ARG MKL_VER=2024.0.0-49656
-ARG CMPLR_COMMON_VER=2024.0
+ARG DPCPP_VER=2024.1.0-963
+ARG MKL_VER=2024.1.0-691
+ARG CMPLR_COMMON_VER=2024.1
 # intel-oneapi-compiler-shared-common provides `sycl-ls`
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
@@ -34,7 +34,7 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Add and prepare Intel Graphics driver index. This is dependent on being able to pass your GPU with a working driver on the host side where the image will run.
-ARG DEVICE=flex
+ARG DEVICE=arc
 # hadolint ignore=DL4006
 RUN no_proxy=$no_proxy wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
@@ -48,7 +48,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 # Copy all the files from the oneAPI runtime libraries image into the actual final image.
 RUN mkdir -p /oneapi-lib
 COPY --from=oneapi-lib-installer /opt/intel/oneapi/redist/lib/ /oneapi-lib/
-ARG CMPLR_COMMON_VER=2024.0
+ARG CMPLR_COMMON_VER=2024.1
 COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/bin/sycl-ls /bin/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
@@ -64,6 +64,7 @@ ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
+    fonts-noto \
     gnupg2 \
     gpg-agent \
     software-properties-common && \
@@ -153,12 +154,17 @@ ENV LD_PRELOAD=${ALLOCATOR_LD_PRELOAD}
 ENV NEOReadDebugKeys=1
 ENV ClDeviceGlobalMemSizeAvailablePercent=100
 
+# Enable SYCL variables for cache reuse and single threaded mode.
+# See https://github.com/intel/llvm/blob/sycl/sycl/doc/EnvironmentVariables.md
+ENV SYCL_CACHE_PERSISTENT=1
+ENV SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
+
 # Enable double precision emulation just in case.
 # See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
 ENV OverrideDefaultFP64Settings=1
 ENV IGC_EnableDPEmulation=1
 
-# Set variable for better training performance
+# Set variable for better training performance in case.
 # See https://github.com/intel/intel-extension-for-pytorch/issues/296#issuecomment-1461118993
 ENV IPEX_XPU_ONEDNN_LAYOUT=1
 
