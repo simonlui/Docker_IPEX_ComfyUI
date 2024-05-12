@@ -2,6 +2,9 @@
 ARG UBUNTU_VERSION=22.04
 FROM ubuntu:${UBUNTU_VERSION} AS oneapi-lib-installer
 
+# Make sure Dockerfile doesn't succeed if there are errors.
+RUN ["/bin/sh", "-c", "/bin/bash", "-o", "pipefail", "-c"]
+
 # Install prerequisites to install oneAPI runtime libraries.
 # hadolint ignore=DL3008
 RUN apt-get update && \
@@ -10,12 +13,10 @@ RUN apt-get update && \
     gnupg2 \
     gpg-agent \
     unzip \
-    wget && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    wget
 
 # hadolint ignore=DL4006
-RUN no_proxy=$no_proxy wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
+RUN wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
    | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
    echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' \
    | tee /etc/apt/sources.list.d/oneAPI.list
@@ -34,12 +35,11 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 # Add and prepare Intel Graphics driver index. This is dependent on being able to pass your GPU with a working driver on the host side where the image will run.
-ARG DEVICE=arc
 # hadolint ignore=DL4006
-RUN no_proxy=$no_proxy wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
+RUN wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
 # hadolint ignore=DL4006
-RUN printf 'deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy %s\n' "${DEVICE}" | \
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy/lts/2350 unified" | \
     tee /etc/apt/sources.list.d/intel.gpu.jammy.list
 
 ARG UBUNTU_VERSION=22.04
@@ -59,18 +59,17 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Set oneAPI library environment variable
 ENV LD_LIBRARY_PATH=/oneapi-lib:/oneapi-lib/intel64:$LD_LIBRARY_PATH
 
-# Install certificate authorities to get access to secure connections to other places for downloads.
+# Install certificate authorities to get access to secure connections to other places for downloads and other packages.
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     ca-certificates \
     fonts-noto \
+    git \
     gnupg2 \
     gpg-agent \
-    software-properties-common && \
-    apt-get upgrade -y --no-install-recommends --fix-missing && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    software-properties-common \
+    wget
 
 # Install Python and other associated packages from PPA since default is 3.10
 ARG PYTHON=python3.11
@@ -81,10 +80,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && \
     ${PYTHON} \
     lib${PYTHON} \
     python3-pip \
-    ${PYTHON}-venv && \
-    #python3-venv && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    ${PYTHON}-venv
 
 # Update pip
 # hadolint ignore=DL3013
@@ -99,10 +95,10 @@ RUN ln -sf "$(which ${PYTHON})" /usr/local/bin/python && \
     ln -sf "$(which ${PYTHON})" /usr/bin/python3
 
 # Sets versions of Level-Zero, OpenCL and memory allocator chosen.
-ARG ICD_VER=23.17.26241.33-647~22.04
-ARG LEVEL_ZERO_GPU_VER=1.3.26241.33-647~22.04
-ARG LEVEL_ZERO_VER=1.11.0-647~22.04
-ARG LEVEL_ZERO_DEV_VER=1.11.0-647~22.04
+ARG ICD_VER=23.43.27642.40-803~22.04
+ARG LEVEL_ZERO_GPU_VER=1.3.27642.40-803~22.04
+ARG LEVEL_ZERO_VER=1.14.0-744~22.04
+ARG LEVEL_ZERO_DEV_VER=1.14.0-744~22.04
 ARG ALLOCATOR=tcmalloc
 ENV ALLOCATOR=${ALLOCATOR}
 ARG ALLOCATOR_PACKAGE=libgoogle-perftools-dev
@@ -118,9 +114,18 @@ RUN apt-get update && \
     intel-opencl-icd=${ICD_VER} \
     intel-level-zero-gpu=${LEVEL_ZERO_GPU_VER} \
     level-zero=${LEVEL_ZERO_VER} \
-    level-zero-dev=${LEVEL_ZERO_DEV_VER} && \
-    apt-get clean && \
-    rm -rf  /var/lib/apt/lists/*
+    level-zero-dev=${LEVEL_ZERO_DEV_VER}
+
+# Update Compute Runtime to latest version
+RUN mkdir neo && \
+    cd neo && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb && \
+    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb && \
+    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb && \
+    dpkg -i *.deb && \
+    cd ..
 
 # Install Comfy UI/Pytorch dependencies.
 # hadolint ignore=DL3008
@@ -130,8 +135,13 @@ RUN apt-get update && \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    git \
-    numactl && \
+    numactl
+    
+# Make sure everything is up to date.
+# hadolint ignore=DL3008
+RUN apt-get update && \
+    apt-get upgrade -y --no-install-recommends --fix-missing && \
+    apt-get autoremove -y && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
@@ -143,26 +153,36 @@ RUN chmod 755 /bin/startup.sh
 VOLUME [ "/deps" ]
 VOLUME [ "/ComfyUI" ]
 VOLUME [ "/models" ]
-VOLUME [ "/root/.cache/huggingfacetest" ]
+VOLUME [ "/root/.cache/huggingface" ]
 
 # Setup location of Python virtual environment and make sure LD_PRELOAD contains the path of the allocator chosen.
 ENV VENVDir=/deps/venv
 ENV LD_PRELOAD=${ALLOCATOR_LD_PRELOAD}
+
+# Enable Level Zero system management
+# See https://spec.oneapi.io/level-zero/latest/sysman/PROG.html
+ENV ZES_ENABLE_SYSMAN=1
 
 # Force 100% available VRAM size for compute-runtime.
 # See https://github.com/intel/compute-runtime/issues/586
 ENV NEOReadDebugKeys=1
 ENV ClDeviceGlobalMemSizeAvailablePercent=100
 
+# Enable double precision emulation just in case.
+# See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
+ENV OverrideDefaultFP64Settings=1
+ENV IGC_EnableDPEmulation=1
+
 # Enable SYCL variables for cache reuse and single threaded mode.
 # See https://github.com/intel/llvm/blob/sycl/sycl/doc/EnvironmentVariables.md
 ENV SYCL_CACHE_PERSISTENT=1
 ENV SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
 
-# Enable double precision emulation just in case.
-# See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
-ENV OverrideDefaultFP64Settings=1
-ENV IGC_EnableDPEmulation=1
+# FIXME: Does this need to be turned on for Stable Diffusion or only with ipex-llm?
+#ENV BIGDL_LLM_XMX_DISABLED=1
+# FIXME: The below variables are optimal for running LLMs but not Stable Diffusion which setting these makes it slower. Figure out why.
+#ENV SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+#ENV USE_XETLA=OFF
 
 # Set variable for better training performance in case.
 # See https://github.com/intel/intel-extension-for-pytorch/issues/296#issuecomment-1461118993
