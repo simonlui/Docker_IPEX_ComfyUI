@@ -1,6 +1,6 @@
 # Stable Diffusion ComfyUI Docker/OCI Image for Intel Arc GPUs
 
-This Docker/OCI image is designed to run [ComfyUI](https://github.com/comfyanonymous/ComfyUI) inside a Docker container for Intel Arc GPUs. This work was based in large part on the work done by a Docker image made by nuullll [here](https://github.com/Nuullll/ipex-sd-docker-for-arc-gpu) for a different Stable Diffusion UI.
+This Docker/OCI image is designed to run [ComfyUI](https://github.com/comfyanonymous/ComfyUI) inside a Docker/OCI container for Intel Arc GPUs. This work was based in large part on the work done by a Docker image made by nuullll [here](https://github.com/Nuullll/ipex-sd-docker-for-arc-gpu) for a different Stable Diffusion UI and the official Docker images from the Intel® Extension for PyTorch* xpu-main branch Docker images [here](https://github.com/intel/intel-extension-for-pytorch/tree/xpu-main/docker).
 
 The Docker/OCI image includes
 - Intel oneAPI DPC++ runtime libs _(Note: compiler executables are not included)_
@@ -22,23 +22,20 @@ There are reports that Intel® Xe GPUs (iGPU and dGPU) in Tiger Lake (11th gener
 * Docker (Desktop) or podman
 * Linux or Windows, with the latest drivers installed.
 
-Windows should work, but it is highly not recommended to run this unless you have a specific reason to do so i.e. needing a Linux host/userspace to run custom nodes or etc. For most purposes, doing a native install will give better speeds and less headaches. You can find instructions I have written for doing that with ComfyUI via [this link](https://github.com/comfyanonymous/ComfyUI/discussions/476#discussioncomment-7152963).
-
+Windows should work, but it is highly not recommended to run this unless you have a specific reason to do so i.e. needing a Linux host/userspace to run custom nodes or etc. For most purposes, doing a native install will give better speeds and less headaches. Please follow the install instructions listed in the [ComfyUI README.md](https://github.com/comfyanonymous/ComfyUI/?tab=readme-ov-file#intel-gpus)
 * If using Windows, you must have WSL2 set up via [this link](https://learn.microsoft.com/en-us/windows/wsl/install) in addition to Docker to be able to pass through your GPU.
 
 ## Build and run the image
 
 Instructions will assume Docker but podman has command compatibility so it should be easy to replace docker in these commands to run also. Run the following command in a terminal to checkout the repository and build the image.
-```console
+```sh
 git clone https://github.com/simonlui/Docker_IPEX_ComfyUI
 cd Docker_IPEX_ComfyUI
 docker build -t ipex-arc-comfy:latest -f Dockerfile .
 ```
-#### Temporary workaround with Intel Extension for Pytorch
-Go to the releases page and download the Python 3.11 packages versions for intel_extension_for_pytorch, intel_extension_for_pytorch_deepspeed, torch, torchaudio, and torchvision and put the package files in your ComfyUI directory. This will replace installation of these packages from Intel's repositories until a new version of IPEX releases. The startup script will pick them up and install them the first time you start the container.
 
 Once the image build is complete, then run the following if using Linux in terminal or Docker Desktop.
-```console
+```sh
 docker run -it `
 --device /dev/dri `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -52,7 +49,7 @@ docker run -it `
 ipex-arc-comfy:latest
 ```
 For Windows, run the following in terminal or Docker Desktop.
-```console
+```sh
 docker run -it `
 --device /dev/dxg `
 -e ComfyArgs="<ComfyUI command line arguments>" `
@@ -70,7 +67,7 @@ Below is an explanation on what the above commands mean so one will know how to 
 
 * docker run creates and runs a new container from an image. No modification needed here.
 * On Linux, `--device /dev/dri` passes in your GPU from your host computer to the container as is required to enable container access to your GPU to run ComfyUI. On Windows, `--device /dev/dxg` and `-v /usr/lib/wsl:/usr/lib/wsl` are the equivalent commands to do the same thing through WSL2.
-* `-e ComfyArgs="<ComfyUI command line arguments>"` specifies the ComfyUI arguments that you can pass to ComfyUI to use. You can take a look at the options you can pass [here](https://github.com/comfyanonymous/ComfyUI/blob/21a563d385ff520e1f7fdaada722212b35fb8d95/comfy/cli_args.py#L36). As of the time of this writing, you may need to specify `--highvram`. `--highvram` keeps the model in GPU memory which can stop a source of crashing.
+* `-e ComfyArgs="<ComfyUI command line arguments>"` specifies the ComfyUI arguments that you can pass to ComfyUI to use. You can take a look at the options you can pass [here](https://github.com/comfyanonymous/ComfyUI/blob/21a563d385ff520e1f7fdaada722212b35fb8d95/comfy/cli_args.py#L36). Things like Pytorch Cross Attention and BF16 are already turned on by default. Options that may help speed but impact accuracy and stability as a result include `--fp8_e4m3fn-text-enc`, `--fp8_e4m3fn-unet` and `--gpu-only`. Be aware that with the last option, offloading everything to VRAM may not be that great given that Intel Arc DG2 series cards and similar have a limitation of any one allocation being maximum 4GB in size due to hardware limitations as discussed in [here](https://github.com/oneapi-src/oneDNN/issues/1638) and one may need to use various VRAM reduction methods to actually work around this for higher resolution image generation.
 * `-it` will let you launch the container with an interactive command line. This is highly recommended, but not mandatory, since we may need to monitor ComfyUI's output for any status changes or errors which would be made available easily by including this option.
 * `--name comfy-server` assigns a meaningful name (e.g. comfy-server) to the newly created container. This option is useful but not mandatory to reference your container for later uses.
 * `--network=host` allows the container access to your host computer's network which is needed to access ComfyUI without specifying the `--listen` argument on Linux hosts only, not Windows.
@@ -89,7 +86,7 @@ docker:
     base_path: /
 ...
 ```
-* `ipexrun` is a launcher script to use Intel's Extension For Pytorch without code changes with optimizations enabled. There may be issues running ComfyUI through the launcher with some of the arguments you can use so it is not enabled by default. To use the XPU path that uses your GPU, add in `-e UseIPEXRUN=true` to the argument string above. Additionally, if one wants to run it in CPU mode, you should additionally add in `-e UseXPU=false` to that list. You should also then set the environment variable for passing arguments to `ipexrun` adding `-e IPEXRUNArgs=<Your arguments here>`. A reference to all the `ipexrun` arguments can be found [here](https://intel.github.io/intel-extension-for-pytorch/xpu/latest/tutorials/performance_tuning/launch_script.html)
+* `ipexrun` is a launcher script to use Intel's Extension For Pytorch without code changes with optimizations enabled. GPU is still not supported and running ComfyUI through the launcher with some of the arguments you can use will be unsupported by Intel themselves so it is not enabled by default. To use the XPU path that uses your GPU, add in `-e UseIPEXRUN=true` to the argument string above. If CPU mode is to be used, you should additionally add in `-e UseXPU=false` to that list. You should also then set the environment variable for passing arguments to `ipexrun` adding `-e IPEXRUNArgs=<Your arguments here>`. A reference to all the `ipexrun` arguments can be found [here](https://intel.github.io/intel-extension-for-pytorch/xpu/latest/tutorials/performance_tuning/launch_script.html)
 * You can change between `tcmalloc` (default) and `jemalloc` if using CPU `ipexrun`, add in `--build-arg="ALLOCATOR=jemalloc"` when building the image in the first step to switch between the two allocators for `ipexrun`.
 
 Please refer to the [Dockerfile](./Dockerfile) for all available build arguments and environment variables not mentioned here and documented.

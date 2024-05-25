@@ -39,7 +39,7 @@ RUN apt-get update && \
 RUN wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel-graphics.key | \
     gpg --dearmor --output /usr/share/keyrings/intel-graphics.gpg
 # hadolint ignore=DL4006
-RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy/lts/2350 unified" | \
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy unified" | \
     tee /etc/apt/sources.list.d/intel.gpu.jammy.list
 
 ARG UBUNTU_VERSION=22.04
@@ -53,7 +53,7 @@ COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
 
-# Set apt install to not be interactive for things like tzdata
+# Set apt install to not be interactive for some packages that require it.
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Set oneAPI library environment variable
@@ -69,36 +69,15 @@ RUN apt-get update && \
     gnupg2 \
     gpg-agent \
     software-properties-common \
-    wget
-
-# Install Python and other associated packages from PPA since default is 3.10
-ARG PYTHON=python3.11
-# hadolint ignore=DL3008
-RUN add-apt-repository ppa:deadsnakes/ppa && \
-    apt-get update && \
-    apt-get install -y --no-install-recommends --fix-missing \
-    ${PYTHON} \
-    lib${PYTHON} \
-    python3-pip \
-    ${PYTHON}-venv
-
-# Update pip
-# hadolint ignore=DL3013
-RUN pip --no-cache-dir install --upgrade \
-    pip \
-    setuptools
-
-# Softlink Python to make it default.
-RUN ln -sf "$(which ${PYTHON})" /usr/local/bin/python && \
-    ln -sf "$(which ${PYTHON})" /usr/local/bin/python3 && \
-    ln -sf "$(which ${PYTHON})" /usr/bin/python && \
-    ln -sf "$(which ${PYTHON})" /usr/bin/python3
+    wget && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Sets versions of Level-Zero, OpenCL and memory allocator chosen.
-ARG ICD_VER=23.43.27642.40-803~22.04
-ARG LEVEL_ZERO_GPU_VER=1.3.27642.40-803~22.04
-ARG LEVEL_ZERO_VER=1.14.0-744~22.04
-ARG LEVEL_ZERO_DEV_VER=1.14.0-744~22.04
+ARG ICD_VER=23.17.26241.33-647~22.04
+ARG LEVEL_ZERO_GPU_VER=1.3.26241.33-647~22.04
+ARG LEVEL_ZERO_VER=1.11.0-647~22.04
+ARG LEVEL_ZERO_DEV_VER=1.11.0-647~22.04
 ARG ALLOCATOR=tcmalloc
 ENV ALLOCATOR=${ALLOCATOR}
 ARG ALLOCATOR_PACKAGE=libgoogle-perftools-dev
@@ -112,20 +91,47 @@ RUN if [ "${ALLOCATOR}" = "jemalloc" ] ; then \
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
     intel-opencl-icd=${ICD_VER} \
-    intel-level-zero-gpu=${LEVEL_ZERO_GPU_VER} \
-    level-zero=${LEVEL_ZERO_VER} \
-    level-zero-dev=${LEVEL_ZERO_DEV_VER}
+    intel-level-zero-gpu=${LEVEL_ZERO_GPU_VER} && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# Update Compute Runtime to latest version
-RUN mkdir neo && \
-    cd neo && \
-    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-core_1.0.16510.2_amd64.deb && \
-    wget https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16510.2/intel-igc-opencl_1.0.16510.2_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-level-zero-gpu_1.3.29138.7_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/intel-opencl-icd_24.13.29138.7_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/24.13.29138.7/libigdgmm12_22.3.18_amd64.deb && \
-    dpkg -i *.deb && \
-    cd ..
+# Getting the latest versions of Intel's Compute Runtime and associated packages on Github and installing it will update everything we installed before.
+RUN mkdir neo
+WORKDIR /neo
+RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-core_1.0.16695.4_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-opencl_1.0.16695.4_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-level-zero-gpu_1.3.29377.6_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-opencl-icd_24.17.29377.6_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/libigdgmm12_22.3.19_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.16.14/level-zero_1.16.14+u20.04_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.16.14/level-zero-devel_1.16.14+u20.04_amd64.deb && \
+    dpkg -i -- *.deb
+WORKDIR /
+
+# Install Python and other associated packages from PPA since default is 3.10
+ARG PYTHON=python3.11
+# hadolint ignore=DL3008
+RUN add-apt-repository ppa:deadsnakes/ppa && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends --fix-missing \
+    ${PYTHON} \
+    lib${PYTHON} \
+    python3-pip \
+    ${PYTHON}-venv && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Update pip
+# hadolint ignore=DL3013
+RUN pip --no-cache-dir install --upgrade \
+    pip \
+    setuptools
+
+# Softlink Python to make it default.
+RUN ln -sf "$(which ${PYTHON})" /usr/local/bin/python && \
+    ln -sf "$(which ${PYTHON})" /usr/local/bin/python3 && \
+    ln -sf "$(which ${PYTHON})" /usr/bin/python && \
+    ln -sf "$(which ${PYTHON})" /usr/bin/python3
 
 # Install Comfy UI/Pytorch dependencies.
 # hadolint ignore=DL3008
@@ -135,7 +141,9 @@ RUN apt-get update && \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    numactl
+    numactl && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
     
 # Make sure everything is up to date.
 # hadolint ignore=DL3008
