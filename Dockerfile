@@ -22,9 +22,9 @@ RUN wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-
    | tee /etc/apt/sources.list.d/oneAPI.list
 
 # Define and install oneAPI runtime libraries for less space.
-ARG DPCPP_VER=2024.1.0-963
-ARG MKL_VER=2024.1.0-691
-ARG CMPLR_COMMON_VER=2024.1
+ARG DPCPP_VER=2024.2.1-1079
+ARG MKL_VER=2024.2.1-103
+ARG CMPLR_COMMON_VER=2024.2
 # intel-oneapi-compiler-shared-common provides `sycl-ls`
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
@@ -48,7 +48,7 @@ FROM ubuntu:${UBUNTU_VERSION}
 # Copy all the files from the oneAPI runtime libraries image into the actual final image.
 RUN mkdir -p /oneapi-lib
 COPY --from=oneapi-lib-installer /opt/intel/oneapi/redist/lib/ /oneapi-lib/
-ARG CMPLR_COMMON_VER=2024.1
+ARG CMPLR_COMMON_VER=2024.2
 COPY --from=oneapi-lib-installer /opt/intel/oneapi/compiler/${CMPLR_COMMON_VER}/bin/sycl-ls /bin/
 COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
 COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
@@ -76,8 +76,6 @@ RUN apt-get update && \
 # Sets versions of Level-Zero, OpenCL and memory allocator chosen.
 ARG ICD_VER=23.17.26241.33-647~22.04
 ARG LEVEL_ZERO_GPU_VER=1.3.26241.33-647~22.04
-ARG LEVEL_ZERO_VER=1.11.0-647~22.04
-ARG LEVEL_ZERO_DEV_VER=1.11.0-647~22.04
 ARG ALLOCATOR=tcmalloc
 ENV ALLOCATOR=${ALLOCATOR}
 ARG ALLOCATOR_PACKAGE=libgoogle-perftools-dev
@@ -98,13 +96,13 @@ RUN apt-get update && \
 # Getting the latest versions of Intel's Compute Runtime and associated packages on Github and installing it will update everything we installed before.
 RUN mkdir neo
 WORKDIR /neo
-RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-core_1.0.16695.4_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.16695.4/intel-igc-opencl_1.0.16695.4_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-level-zero-gpu_1.3.29377.6_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/intel-opencl-icd_24.17.29377.6_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.17.29377.6/libigdgmm12_22.3.19_amd64.deb && \
-    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.16.14/level-zero_1.16.14+u20.04_amd64.deb && \
-    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.16.14/level-zero-devel_1.16.14+u20.04_amd64.deb && \
+RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17193.4/intel-igc-core_1.0.17193.4_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17193.4/intel-igc-opencl_1.0.17193.4_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.26.30049.6/intel-level-zero-gpu_1.3.30049.6_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.26.30049.6/intel-opencl-icd_24.26.30049.6_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.26.30049.6/libigdgmm12_22.3.20_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.17.6/level-zero_1.17.6+u22.04_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.17.6/level-zero-devel_1.17.6+u22.04_amd64.deb && \
     dpkg -i -- *.deb
 WORKDIR /
 
@@ -123,7 +121,7 @@ RUN add-apt-repository ppa:deadsnakes/ppa && \
 
 # Update pip
 # hadolint ignore=DL3013
-RUN pip --no-cache-dir install --upgrade \
+RUN python3 -m pip install -U \
     pip \
     setuptools
 
@@ -176,10 +174,10 @@ ENV ZES_ENABLE_SYSMAN=1
 ENV NEOReadDebugKeys=1
 ENV ClDeviceGlobalMemSizeAvailablePercent=100
 
-# Enable double precision emulation just in case.
+# Enable double precision emulation. Turned off by default to enable attention slicing to address the 4GB single allocation limit with Intel Xe GPUs and lower.
 # See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
-ENV OverrideDefaultFP64Settings=1
-ENV IGC_EnableDPEmulation=1
+#ENV OverrideDefaultFP64Settings=1
+#ENV IGC_EnableDPEmulation=1
 
 # Enable SYCL variables for cache reuse and single threaded mode.
 # See https://github.com/intel/llvm/blob/sycl/sycl/doc/EnvironmentVariables.md
@@ -190,7 +188,7 @@ ENV SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
 #ENV BIGDL_LLM_XMX_DISABLED=1
 # FIXME: The below variables are optimal for running LLMs but not Stable Diffusion which setting these makes it slower. Figure out why.
 #ENV SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
-#ENV USE_XETLA=OFF
+ENV USE_XETLA=OFF
 
 # Set variable for better training performance in case.
 # See https://github.com/intel/intel-extension-for-pytorch/issues/296#issuecomment-1461118993
