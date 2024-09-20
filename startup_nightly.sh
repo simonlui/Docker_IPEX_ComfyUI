@@ -18,7 +18,8 @@ if [ -f "$VENVDir"/bin/activate ]
 then
     echo "Activating python venv."
     . "$VENVDir"/bin/activate
-    . /opt/intel/oneapi/setvars.sh
+    . /opt/intel/oneapi/pytorch-gpu-dev-0.5/oneapi-vars.sh
+    . /opt/intel/oneapi/pti/latest/env/vars.sh
 else
     echo "Error: Cannot activate python venv. Check installation. Exiting immediately."
     exit 1
@@ -28,9 +29,7 @@ fi
 if [ "$FirstLaunch" = "true" ]
 then
     echo "Installing ComfyUI Python dependencies."
-    python -m pip install torch==2.3.1+cxx11.abi torchvision==0.18.1+cxx11.abi torchaudio==2.3.1+cxx11.abi intel-extension-for-pytorch==2.3.110+xpu oneccl_bind_pt==2.3.100+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/us/
-    # Comment out the above command and uncomment the following one instead if you are a user from the PRC.
-    #python -m pip install torch==2.3.1+cxx11.abi torchvision==0.18.1+cxx11.abi torchaudio==2.3.1+cxx11.abi intel-extension-for-pytorch==2.3.110+xpu oneccl_bind_pt==2.3.100+xpu --extra-index-url https://pytorch-extension.intel.com/release-whl/stable/xpu/cn/
+    python -m pip install torch==2.5.0.dev20240912+xpu torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu
     pip install -r requirements.txt
 fi
 

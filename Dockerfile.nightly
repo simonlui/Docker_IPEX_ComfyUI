@@ -17,21 +17,16 @@ RUN apt-get update && \
 
 # hadolint ignore=DL4006
 RUN wget --progress=dot:giga -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-   | gpg --dearmor | tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null && \
-   echo 'deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/oneapi all main' \
-   | tee /etc/apt/sources.list.d/oneAPI.list
+   | gpg --dearmor | tee /usr/share/keyrings/intel-for-pytorch-gpu-dev-keyring.gpg > /dev/null && \
+   echo 'deb [signed-by=/usr/share/keyrings/intel-for-pytorch-gpu-dev-keyring.gpg] https://apt.repos.intel.com/intel-for-pytorch-gpu-dev all main' \
+   | tee /etc/apt/sources.list.d/intel-for-pytorch-gpu-dev.list
 
 # Define and install oneAPI runtime libraries for less space.
-ARG DPCPP_VER=2024.2.1-1079
-ARG MKL_VER=2024.2.2-15
-ARG CMPLR_COMMON_VER=2024.2
-# intel-oneapi-compiler-shared-common provides `sycl-ls` and other utilities like the compiler
+# intel-oneapi-compiler-shared-common provides `sycl-ls`
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
-    intel-oneapi-dpcpp-cpp-${CMPLR_COMMON_VER}=${DPCPP_VER} \
-    intel-oneapi-compiler-shared-common-${CMPLR_COMMON_VER}=${DPCPP_VER} \
-    intel-oneapi-runtime-dpcpp-cpp=${DPCPP_VER} \
-    intel-oneapi-runtime-mkl=${MKL_VER} && \
+    intel-for-pytorch-gpu-dev-0.5 \
+    intel-pti-dev && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -43,15 +38,6 @@ RUN wget --progress=dot:giga -qO - https://repositories.intel.com/graphics/intel
 RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy unified" | \
     tee /etc/apt/sources.list.d/intel.gpu.jammy.list
 
-ARG UBUNTU_VERSION=22.04
-FROM ubuntu:${UBUNTU_VERSION}
-
-# Copy all the files from the oneAPI runtime libraries image into the actual final image.
-RUN mkdir -p /opt/intel
-COPY --from=oneapi-lib-installer /opt/intel/ /opt/intel/
-COPY --from=oneapi-lib-installer /usr/share/keyrings/intel-graphics.gpg /usr/share/keyrings/intel-graphics.gpg
-COPY --from=oneapi-lib-installer /etc/apt/sources.list.d/intel.gpu.jammy.list /etc/apt/sources.list.d/intel.gpu.jammy.list
-
 # Set apt install to not be interactive for some packages that require it.
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -62,7 +48,6 @@ ENV LD_LIBRARY_PATH=/opt/intel/oneapi/redist/lib:/opt/intel/oneapi/redist/lib/in
 # hadolint ignore=DL3008
 RUN apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
-    build-essential \
     ca-certificates \
     fonts-noto \
     git \
@@ -155,8 +140,8 @@ RUN apt-get update && \
     rm -rf  /var/lib/apt/lists/*
 
 # Copy the startup script to the /bin/ folder and make executable.
-COPY startup.sh /bin/
-RUN chmod 755 /bin/startup.sh
+COPY startup_nightly.sh /bin/
+RUN chmod 755 /bin/startup_nightly.sh
 
 # Volumes that can be used by the image when making containers.
 VOLUME [ "/deps" ]
@@ -177,11 +162,10 @@ ENV ZES_ENABLE_SYSMAN=1
 ENV NEOReadDebugKeys=1
 ENV ClDeviceGlobalMemSizeAvailablePercent=100
 
-# Enable double precision emulation. Turned on by default to enable torch.compile to work for various kernels. Turn this off if you need to enable attention
-# slicing to address the 4GB single allocation limit with Intel Xe GPUs and lower and don't use torch.compile.
+# Enable double precision emulation. Turned off by default to enable attention slicing to address the 4GB single allocation limit with Intel Xe GPUs and lower.
 # See https://github.com/intel/compute-runtime/blob/master/opencl/doc/FAQ.md#feature-double-precision-emulation-fp64
-ENV OverrideDefaultFP64Settings=1
-ENV IGC_EnableDPEmulation=1
+#ENV OverrideDefaultFP64Settings=1
+#ENV IGC_EnableDPEmulation=1
 
 # Enable SYCL variables for cache reuse and single threaded mode.
 # See https://github.com/intel/llvm/blob/sycl/sycl/doc/EnvironmentVariables.md
@@ -190,11 +174,9 @@ ENV SYCL_PI_LEVEL_ZERO_SINGLE_THREAD_MODE=1
 
 # Setting to turn on for Intel Xe GPUs that do not have XMX cores which include any iGPUs from Intel Ice Lake to Meteor Lake.
 #ENV BIGDL_LLM_XMX_DISABLED=1
-# Linux only setting that speeds up compute workload submissions allowing them to run concurrently on a single hardware queue. Turned off by default since
-# this was only introduced recently with the Xe graphics driver you need to turn on by default manually and development focus has been on using this feature
-# with Data Center GPU Max Series. Only also seems to benefit LLMs mostly when Intel encourages turning it on on Intel Arc cards. Also need kernel 6.2 or up.
-# See https://www.intel.com/content/www/us/en/developer/articles/guide/level-zero-immediate-command-lists.html
-#ENV SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
+# Linux only setting that speeds up compute workload submissions allowing them to run concurrently on a single hardwaare queue. Turned off by default since
+# this was only introduced recently with the Xe graphics driver you need to turn on by default.
+ENV SYCL_PI_LEVEL_ZERO_USE_IMMEDIATE_COMMANDLISTS=1
 # Only use if something with Intel's low level libraries aren't working, see https://github.com/intel/xetla/tree/main for more details on what this affects.
 #ENV USE_XETLA=OFF
 
@@ -216,10 +198,10 @@ ENV UseIPEXRUN=${UseIPEXRUN}
 ARG IPEXRUNArgs=""
 ENV IPEXRUNArgs=${IPEXRUNArgs}
 
-# Pass in ComfyUI arguments as an environment variable so it can be used in startup.sh which passes it on.
+# Pass in ComfyUI arguments as an environment variable so it can be used in startup_nightly.sh which passes it on.
 ARG ComfyArgs=""
 ENV ComfyArgs=${ComfyArgs}
 
 # Set location and entrypoint of the image to the ComfyUI directory and the startup script.
 WORKDIR /ComfyUI
-ENTRYPOINT [ "startup.sh" ]
+ENTRYPOINT [ "startup_nightly.sh" ]
