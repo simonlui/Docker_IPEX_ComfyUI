@@ -134,18 +134,16 @@ RUN apt-get update && \
 # Getting the latest versions of Intel's Compute Runtime and associated packages on Github and installing it will update everything we installed before.
 RUN mkdir neo
 WORKDIR /neo
-RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17537.20/intel-igc-core_1.0.17537.20_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.17537.20/intel-igc-opencl_1.0.17537.20_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.35.30872.22/intel-level-zero-gpu_1.3.30872.22_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.35.30872.22/intel-level-zero-gpu-legacy1_1.3.30872.22_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.35.30872.22/intel-opencl-icd_24.35.30872.22_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.35.30872.22/intel-opencl-icd-legacy1_24.35.30872.22_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.35.30872.22/libigdgmm12_22.5.0_amd64.deb && \
-    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.17.39/level-zero_1.17.39+u22.04_amd64.deb && \
-    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.17.39/level-zero-devel_1.17.39+u22.04_amd64.deb && \
+RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.1.12/intel-igc-core-2_2.1.12+18087_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.1.12/intel-igc-opencl-2_2.1.12+18087_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/intel-level-zero-gpu_1.6.31740.9_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/intel-opencl-icd_24.45.31740.9_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/libigdgmm12_22.5.2_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.19.2/level-zero_1.19.2+u22.04_amd64.deb && \
+    wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.19.2/level-zero-devel_1.19.2+u22.04_amd64.deb && \
     dpkg -i -- *.deb
 WORKDIR /
-    
+
 # Make sure everything is up to date.
 # hadolint ignore=DL3008
 RUN apt-get update && \
