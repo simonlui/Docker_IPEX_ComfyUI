@@ -29,7 +29,9 @@ fi
 if [ "$FirstLaunch" = "true" ]
 then
     echo "Installing ComfyUI Python dependencies."
-    python -m pip install torch==2.5.0.dev20240912+xpu torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu
+    python -m pip install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu
+    # Install dependency to make torch.compile work.
+    python -m pip install --pre pytorch-triton-xpu --index-url https://download.pytorch.org/whl/nightly/xpu
     pip install -r requirements.txt
 fi
 
