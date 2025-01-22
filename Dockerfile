@@ -134,11 +134,11 @@ RUN apt-get update && \
 # Getting the latest versions of Intel's Compute Runtime and associated packages on Github and installing it will update everything we installed before.
 RUN mkdir neo
 WORKDIR /neo
-RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.1.12/intel-igc-core-2_2.1.12+18087_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.1.12/intel-igc-opencl-2_2.1.12+18087_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/intel-level-zero-gpu_1.6.31740.9_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/intel-opencl-icd_24.45.31740.9_amd64.deb && \
-    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.45.31740.9/libigdgmm12_22.5.2_amd64.deb && \
+RUN wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.5.6/intel-igc-core-2_2.5.6+18417_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/intel-graphics-compiler/releases/download/v2.5.6/intel-igc-opencl-2_2.5.6+18417_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.52.32224.5/intel-level-zero-gpu_1.6.32224.5_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.52.32224.5/intel-opencl-icd_24.52.32224.5_amd64.deb && \
+    wget --progress=dot:giga https://github.com/intel/compute-runtime/releases/download/24.52.32224.5/libigdgmm12_22.5.5_amd64.deb && \
     wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.19.2/level-zero_1.19.2+u22.04_amd64.deb && \
     wget --progress=dot:giga https://github.com/oneapi-src/level-zero/releases/download/v1.19.2/level-zero-devel_1.19.2+u22.04_amd64.deb && \
     dpkg -i -- *.deb
@@ -151,6 +151,9 @@ RUN apt-get update && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
+
+# Remove linux-libc-dev for security reasons without disturbing anything else.
+RUN dpkg -r --force-depends linux-libc-dev
 
 # Copy the startup script to the /bin/ folder and make executable.
 COPY startup.sh /bin/

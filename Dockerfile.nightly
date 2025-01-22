@@ -137,6 +137,9 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf  /var/lib/apt/lists/*
 
+# Remove linux-libc-dev for security reasons without disturbing anything else.
+RUN dpkg -r --force-depends linux-libc-dev
+
 # Copy the startup script to the /bin/ folder and make executable.
 COPY startup_nightly.sh /bin/
 RUN chmod 755 /bin/startup_nightly.sh
